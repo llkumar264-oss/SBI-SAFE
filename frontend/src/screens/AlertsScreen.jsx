@@ -1,200 +1,77 @@
-import { useState, useEffect } from 'react'
-import { Bell, BellOff, RefreshCw, Shield, AlertTriangle, Info, CheckCircle } from 'lucide-react'
-import { getAlerts } from '../services/api'
-import { useApp } from '../context/AppContext'
-import toast from 'react-hot-toast'
-
-const MOCK_ALERTS = [
-  {
-    id: 1, title: '🚨 Phishing SMS Blocked',
-    message: 'A message impersonating SBI was intercepted and blocked automatically.',
-    severity: 'high', type: 'sms', time: '2 mins ago', is_read: false,
-  },
-  {
-    id: 2, title: '⚠️ Suspicious URL Flagged',
-    message: 'http://sbi-login.tk was flagged as phishing (Risk Score: 88/100).',
-    severity: 'high', type: 'link', time: '15 mins ago', is_read: false,
-  },
-  {
-    id: 3, title: '🟡 Risky App Permission',
-    message: 'An installed app requested READ_SMS permission which can intercept OTPs.',
-    severity: 'medium', type: 'app', time: '1 hour ago', is_read: false,
-  },
-  {
-    id: 4, title: '📢 Community Alert',
-    message: 'New phishing campaign targeting SBI customers detected in Mumbai.',
-    severity: 'medium', type: 'community', time: '3 hours ago', is_read: true,
-  },
-  {
-    id: 5, title: '✅ System Scan Complete',
-    message: 'Scheduled scan finished. No new threats found on your device.',
-    severity: 'low', type: 'system', time: '5 hours ago', is_read: true,
-  },
-  {
-    id: 6, title: '🔐 Login from New Location',
-    message: 'Banking app login detected from an unfamiliar IP address.',
-    severity: 'medium', type: 'security', time: '1 day ago', is_read: true,
-  },
-  {
-    id: 7, title: '💡 Tip: Enable 2FA',
-    message: 'Enable two-factor authentication on your banking apps for better protection.',
-    severity: 'low', type: 'tip', time: '2 days ago', is_read: true,
-  },
-]
-
-function AlertCard({ alert, onDismiss }) {
-  const bgColors = {
-    high: 'rgba(255,58,58,0.08)',
-    medium: 'rgba(255,214,10,0.08)',
-    low: 'rgba(0,255,136,0.05)',
-  }
-  const borderColors = {
-    high: 'rgba(255,58,58,0.3)',
-    medium: 'rgba(255,214,10,0.3)',
-    low: 'rgba(0,255,136,0.2)',
-  }
-  const icons = { high: <AlertTriangle size={18} />, medium: <Info size={18} />, low: <CheckCircle size={18} /> }
-  const iconColors = { high: 'var(--accent-red)', medium: 'var(--accent-yellow)', low: 'var(--accent-green)' }
-
-  return (
-    <div style={{
-      background: bgColors[alert.severity] || 'var(--bg-card)',
-      border: `1px solid ${borderColors[alert.severity] || 'var(--border-color)'}`,
-      borderRadius: 'var(--radius-md)',
-      padding: '14px', marginBottom: 10,
-      opacity: alert.is_read ? 0.7 : 1,
-      transition: 'all 0.2s',
-      animation: 'slideUp 0.3s ease',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-          background: `${iconColors[alert.severity]}15`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: iconColors[alert.severity],
-        }}>
-          {icons[alert.severity]}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>{alert.title}</div>
-            {!alert.is_read && (
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-blue)', flexShrink: 0 }} />
-            )}
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{alert.message}</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{alert.time}</div>
-            <span className={`badge badge-${alert.severity}`}>{alert.severity.toUpperCase()}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+import { useState } from 'react'
 
 export default function AlertsScreen() {
-  const [alerts, setAlerts] = useState(MOCK_ALERTS)
   const [filter, setFilter] = useState('all')
-  const [loading, setLoading] = useState(false)
-  const { markAlertsRead } = useApp()
 
-  useEffect(() => {
-    markAlertsRead()
-    fetchAlerts()
-  }, [])
-
-  const fetchAlerts = async () => {
-    setLoading(true)
-    try {
-      const res = await getAlerts()
-      if (res.data.alerts?.length > 0) {
-        setAlerts([...res.data.alerts.map(a => ({ ...a, is_read: false })), ...MOCK_ALERTS.slice(2)])
-      }
-    } catch {
-      // Use mock data
-    } finally { setLoading(false) }
-  }
-
-  const filtered = filter === 'all' ? alerts : alerts.filter(a => a.severity === filter)
-  const unreadCount = alerts.filter(a => !a.is_read).length
-
-  const filterBtns = [
-    { id: 'all', label: 'All' },
-    { id: 'high', label: '🔴 High' },
-    { id: 'medium', label: '🟡 Medium' },
-    { id: 'low', label: '🟢 Low' },
+  const alerts = [
+    { id: 1, title: 'Phishing SMS Detected', desc: 'Suspicious message from +1 234-567-8900', time: '2 min ago', severity: 'critical', icon: '🛑', read: false },
+    { id: 2, title: 'Fake App Warning', desc: 'Banking app clone detected on device', time: '15 min ago', severity: 'critical', icon: '🛑', read: false },
+    { id: 3, title: 'Fraud Near You', desc: '3 scams reported in your area', time: '1 hour ago', severity: 'medium', icon: '⚠️', read: false },
+    { id: 4, title: 'Suspicious Link Blocked', desc: 'Blocked access to phishing URL', time: '3 hours ago', severity: 'high', icon: '🔴', read: true },
+    { id: 5, title: 'Weekly Security Report', desc: 'Your weekly security summary is ready', time: '1 day ago', severity: 'low', icon: '📊', read: true },
+    { id: 6, title: 'New Scam Trending', desc: 'Crypto investment scam on the rise', time: '2 days ago', severity: 'medium', icon: '📈', read: true },
   ]
 
+  const sevColors = { critical: '#ff3d57', high: '#ff9100', medium: '#ffd600', low: '#00e676' }
+  const filters = ['all', 'critical', 'high', 'medium', 'low']
+  const filtered = filter === 'all' ? alerts : alerts.filter(a => a.severity === filter)
+  const unread = alerts.filter(a => !a.read).length
+
   return (
-    <div>
-      <div className="top-bar">
-        <div className="top-bar-title">🔔 Alerts</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {unreadCount > 0 && (
-            <span className="badge badge-high">{unreadCount} new</span>
+    <div className="screen-content" style={{ padding: '0 0 90px 0' }}>
+      <div style={{ padding: '16px 18px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, background: 'linear-gradient(135deg, #00c6ff, #0ff0fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Alerts</h1>
+          {unread > 0 && (
+            <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, background: 'rgba(255,61,87,0.15)', color: '#ff3d57', border: '1px solid rgba(255,61,87,0.3)' }}>{unread} new</span>
           )}
-          <div className="icon-btn" onClick={fetchAlerts}>
-            <RefreshCw size={16} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-          </div>
         </div>
+        <p style={{ fontSize: '0.82rem', color: '#8a9cbc' }}>Real-time security notifications</p>
       </div>
 
-      <div className="screen-content screen-pad animate-fadeIn">
-        {/* Stats Row */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {[
-            { label: 'Total', value: alerts.length, color: 'var(--accent-blue)' },
-            { label: 'High', value: alerts.filter(a => a.severity === 'high').length, color: 'var(--accent-red)' },
-            { label: 'Unread', value: unreadCount, color: 'var(--accent-yellow)' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ flex: 1, textAlign: 'center', padding: 12 }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 900, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{s.label}</div>
+      <div style={{ padding: '0 18px' }}>
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18, overflowX: 'auto', paddingBottom: 4 }}>
+          {filters.map(f => (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: '7px 16px', borderRadius: 20, border: 'none', fontSize: '0.75rem', fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'Inter', transition: 'all 0.25s', whiteSpace: 'nowrap', textTransform: 'capitalize',
+              background: filter === f ? 'linear-gradient(135deg, #00c6ff, #0066cc)' : 'rgba(255,255,255,0.04)',
+              color: filter === f ? '#fff' : '#8a9cbc',
+            }}>{f}</button>
+          ))}
+        </div>
+
+        {/* Live indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '10px 14px', background: 'rgba(0,230,118,0.06)', border: '1px solid rgba(0,230,118,0.15)', borderRadius: 12 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00e676', animation: 'pulseGlow 2s infinite' }} />
+          <span style={{ fontSize: '0.78rem', color: '#00e676', fontWeight: 600 }}>Live Monitoring Active</span>
+        </div>
+
+        {/* Alert List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(a => (
+            <div key={a.id} style={{
+              background: a.read ? 'rgba(16,30,52,0.5)' : 'rgba(16,30,52,0.8)',
+              border: `1px solid ${a.read ? 'rgba(0,198,255,0.05)' : 'rgba(0,198,255,0.12)'}`,
+              borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14,
+              borderLeft: `3px solid ${sevColors[a.severity]}`,
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${sevColors[a.severity]}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.1rem' }}>{a.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f0f4ff' }}>{a.title}</span>
+                  {!a.read && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00c6ff' }} />}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#8a9cbc', marginBottom: 6 }}>{a.desc}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '0.68rem', color: '#4a5a7a' }}>{a.time}</span>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 8px', borderRadius: 20, textTransform: 'capitalize', background: `${sevColors[a.severity]}15`, color: sevColors[a.severity], border: `1px solid ${sevColors[a.severity]}30` }}>{a.severity}</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
-
-        {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-          {filterBtns.map(btn => (
-            <button key={btn.id} onClick={() => setFilter(btn.id)} style={{
-              flexShrink: 0, padding: '6px 14px', borderRadius: 99, border: '1px solid',
-              borderColor: filter === btn.id ? 'var(--accent-blue)' : 'var(--border-color)',
-              background: filter === btn.id ? 'rgba(0,198,255,0.12)' : 'transparent',
-              color: filter === btn.id ? 'var(--accent-blue)' : 'var(--text-secondary)',
-              fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)',
-              transition: 'all 0.2s',
-            }}>
-              {btn.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Real-time indicator */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16,
-          padding: '8px 12px', background: 'rgba(0,255,136,0.06)',
-          border: '1px solid rgba(0,255,136,0.15)', borderRadius: 8,
-        }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-green)',
-            animation: 'blink 1.5s infinite',
-          }} />
-          <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: 500 }}>
-            Live monitoring active — auto-refreshes every 30s
-          </span>
-        </div>
-
-        {/* Alert list */}
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <BellOff size={40} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No alerts in this category</div>
-          </div>
-        ) : (
-          filtered.map(alert => <AlertCard key={alert.id} alert={alert} />)
-        )}
       </div>
     </div>
   )

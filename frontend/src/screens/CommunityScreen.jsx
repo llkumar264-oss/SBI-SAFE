@@ -1,270 +1,162 @@
 import { useState, useEffect } from 'react'
-import { Plus, ThumbsUp, AlertTriangle, MessageSquare, Link, Smartphone, Phone, ChevronDown } from 'lucide-react'
-import { submitReport, getReports, upvoteReport } from '../services/api'
+import { submitReport, getReports } from '../services/api'
 import toast from 'react-hot-toast'
 
-const TYPE_META = {
-  sms: { icon: <MessageSquare size={16} />, label: 'SMS Fraud', color: '#8b5cf6' },
-  link: { icon: <Link size={16} />, label: 'Phishing Link', color: '#ff3a3a' },
-  app: { icon: <Smartphone size={16} />, label: 'Fake App', color: '#ff8c00' },
-  call: { icon: <Phone size={16} />, label: 'Fraud Call', color: '#ffd60a' },
-  whatsapp: { icon: '💬', label: 'WhatsApp Fraud', color: '#00c853' },
-  email: { icon: '📧', label: 'Phishing Email', color: '#00c6ff' },
-}
-
-const MOCK_REPORTS = [
-  {
-    id: 1, report_type: 'sms', severity: 'high', upvotes: 42, verified: true,
-    content: 'Dear SBI customer, your account is blocked. Click http://sbi-verify.tk to unlock immediately.',
-    location: 'Mumbai', reported_at: '2026-04-25T10:00:00',
-  },
-  {
-    id: 2, report_type: 'link', severity: 'high', upvotes: 28, verified: true,
-    content: 'http://hdfc-bank-login.xyz/secure — Fake HDFC login page stealing credentials.',
-    location: 'Delhi', reported_at: '2026-04-24T14:00:00',
-  },
-  {
-    id: 3, report_type: 'app', severity: 'high', upvotes: 15, verified: false,
-    content: 'Fake SBI YONO app from third-party store requesting SMS + Contact permissions.',
-    location: 'Bengaluru', reported_at: '2026-04-23T08:00:00',
-  },
-  {
-    id: 4, report_type: 'call', severity: 'medium', upvotes: 8, verified: false,
-    content: 'Caller claiming to be RBI officer asking for ATM PIN and OTP.',
-    location: 'Hyderabad', reported_at: '2026-04-22T16:00:00',
-  },
-  {
-    id: 5, report_type: 'whatsapp', severity: 'medium', upvotes: 19, verified: false,
-    content: 'Won ₹5 lakh lottery! Click here to claim: http://prize.click/win — WhatsApp message.',
-    location: 'Chennai', reported_at: '2026-04-21T11:00:00',
-  },
-]
-
-function ReportCard({ report, onUpvote }) {
-  const meta = TYPE_META[report.report_type] || TYPE_META.link
-  const timeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const days = Math.floor(diff / 86400000)
-    return days === 0 ? 'Today' : `${days}d ago`
-  }
-
-  return (
-    <div className="report-card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-          background: `${meta.color}15`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: meta.color,
-        }}>
-          {meta.icon}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{meta.label}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            📍 {report.location} • {timeAgo(report.reported_at)}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-          <span className={`badge badge-${report.severity}`}>{report.severity}</span>
-          {report.verified && <span style={{ fontSize: '0.65rem', color: 'var(--accent-green)' }}>✅ Verified</span>}
-        </div>
-      </div>
-
-      <div style={{
-        fontSize: '0.78rem', color: 'var(--text-secondary)',
-        lineHeight: 1.5, padding: '8px 10px',
-        background: 'rgba(255,255,255,0.02)', borderRadius: 8,
-        borderLeft: `2px solid ${meta.color}40`,
-      }}>
-        {report.content.slice(0, 120)}{report.content.length > 120 ? '…' : ''}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button
-          onClick={() => onUpvote(report.id)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(0,198,255,0.08)', border: '1px solid rgba(0,198,255,0.2)',
-            borderRadius: 99, padding: '5px 12px', cursor: 'pointer',
-            color: 'var(--accent-blue)', fontSize: '0.78rem', fontWeight: 600,
-            fontFamily: 'var(--font)', transition: 'all 0.2s',
-          }}
-        >
-          <ThumbsUp size={13} /> {report.upvotes} Helpful
-        </button>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          Report #{report.id}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function ReportForm({ onClose, onSubmit }) {
-  const [form, setForm] = useState({ report_type: 'sms', content: '', location: '', severity: 'medium' })
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async () => {
-    if (form.content.trim().length < 10) return toast.error('Please provide more details (min 10 chars)')
-    setLoading(true)
-    try {
-      await onSubmit(form)
-      toast.success('🚨 Fraud report submitted! Thank you for keeping others safe.')
-      onClose()
-    } catch {
-      toast.error('Could not submit report. Please try again.')
-    } finally { setLoading(false) }
-  }
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
-      zIndex: 200, display: 'flex', alignItems: 'flex-end',
-      backdropFilter: 'blur(4px)',
-    }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: 'var(--bg-secondary)', borderRadius: '24px 24px 0 0',
-        padding: '24px 20px', width: '100%', maxWidth: '390px',
-        margin: '0 auto', border: '1px solid var(--border-color)',
-        animation: 'slideUp 0.3s ease',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>🚨 Report Fraud</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-            Help protect the community
-          </div>
-        </div>
-
-        <div className="input-group mb-3">
-          <label className="input-label">Type</label>
-          <select className="input" value={form.report_type} onChange={e => setForm(f => ({ ...f, report_type: e.target.value }))}>
-            {Object.entries(TYPE_META).map(([key, val]) => (
-              <option key={key} value={key}>{val.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="input-group mb-3">
-          <label className="input-label">Description *</label>
-          <textarea className="input" rows={3}
-            placeholder="Describe the fraud — include the message, URL, or app name..."
-            value={form.content}
-            onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-          <div className="input-group" style={{ flex: 1 }}>
-            <label className="input-label">Location</label>
-            <input className="input" placeholder="City (optional)"
-              value={form.location}
-              onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-          </div>
-          <div className="input-group" style={{ flex: 1 }}>
-            <label className="input-label">Severity</label>
-            <select className="input" value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-        </div>
-
-        <button className="btn btn-danger btn-full btn-lg" onClick={handleSubmit} disabled={loading}>
-          {loading ? <><div className="spinner" /> Submitting…</> : '🚨 Submit Report'}
-        </button>
-        <button className="btn btn-outline btn-full mt-2" onClick={onClose}>Cancel</button>
-      </div>
-    </div>
-  )
-}
-
 export default function CommunityScreen() {
-  const [reports, setReports] = useState(MOCK_REPORTS)
-  const [showForm, setShowForm] = useState(false)
-  const [filter, setFilter] = useState('all')
+  const [showReportForm, setShowReportForm] = useState(false)
+  const [reports, setReports] = useState([])
+  const [reportType, setReportType] = useState('')
+  const [reportDesc, setReportDesc] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const trendingScams = [
+    { rank: 1, title: 'Fake Package Delivery SMS', reports: 1247, trend: '+45%', color: '#00c6ff' },
+    { rank: 2, title: 'Crypto Investment Scam', reports: 892, trend: '+32%', color: '#8b5cf6' },
+    { rank: 3, title: 'Tech Support Calls', reports: 567, trend: '+18%', color: '#00e676' },
+  ]
+
+  const recentReports = [
+    { id: 1, user: 'Sarah Chen', initials: 'SC', badge: 'Fraud Hunter', time: '5 min ago', type: 'Phishing SMS', verified: true, desc: 'Fake DHL delivery message asking for payment to release package.', color: '#00e676', upvotes: 24 },
+    { id: 2, user: 'Raj Patel', initials: 'RP', badge: 'Cyber Guardian', time: '18 min ago', type: 'Fake App', verified: true, desc: 'Fake SBI YONO app on third-party store requesting all permissions.', color: '#00c6ff', upvotes: 15 },
+    { id: 3, user: 'Anita K.', initials: 'AK', badge: null, time: '1 hour ago', type: 'Scam Call', verified: false, desc: 'Caller claiming to be RBI officer asking for Aadhaar and OTP.', color: '#ff9100', upvotes: 8 },
+  ]
+
+  const fraudTypes = [
+    { id: 'sms_fraud', label: 'SMS Fraud', icon: '💬' },
+    { id: 'whatsapp_scam', label: 'WhatsApp Scam', icon: '💬' },
+    { id: 'fake_app', label: 'Fake App', icon: '📱' },
+    { id: 'scam_call', label: 'Scam Call', icon: '📞' },
+  ]
 
   useEffect(() => {
-    getReports({ limit: 30 }).then(r => {
-      if (r.data.length > 0) setReports([...r.data, ...MOCK_REPORTS])
-    }).catch(() => {})
+    getReports().then(r => r && setReports(r)).catch(() => {})
   }, [])
 
-  const handleUpvote = async (id) => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, upvotes: r.upvotes + 1 } : r))
-    try { await upvoteReport(id) } catch {}
+  const handleSubmit = async () => {
+    if (!reportType || !reportDesc.trim()) return toast.error('Fill all fields')
+    setSubmitting(true)
+    try {
+      await submitReport({ report_type: reportType, description: reportDesc, source: 'community', location: 'India' })
+      toast.success('Report submitted!')
+      setShowReportForm(false)
+      setReportType('')
+      setReportDesc('')
+    } catch { toast.error('Failed to submit') }
+    setSubmitting(false)
   }
 
-  const handleSubmit = async (form) => {
-    const res = await submitReport(form)
-    setReports(prev => [res.data, ...prev])
+  // Report Form View
+  if (showReportForm) {
+    return (
+      <div className="screen-content" style={{ padding: '0 0 90px 0' }}>
+        <div style={{ padding: '16px 18px 8px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div onClick={() => setShowReportForm(false)} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,198,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#8a9cbc' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Report Fraud</h1>
+            <p style={{ fontSize: '0.78rem', color: '#00c6ff' }}>Help protect the community by reporting scams</p>
+          </div>
+        </div>
+
+        <div style={{ padding: '16px 18px' }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 14, color: '#f0f4ff' }}>Select Fraud Type</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+            {fraudTypes.map(ft => (
+              <div key={ft.id} onClick={() => setReportType(ft.id)} style={{
+                background: reportType === ft.id ? 'rgba(0,198,255,0.08)' : 'rgba(16,30,52,0.7)',
+                border: `1px solid ${reportType === ft.id ? 'rgba(0,198,255,0.3)' : 'rgba(0,198,255,0.08)'}`,
+                borderRadius: 16, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.25s'
+              }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '1.4rem' }}>{ft.icon}</div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f0f4ff' }}>{ft.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 10, color: '#f0f4ff' }}>Description</h3>
+          <textarea value={reportDesc} onChange={e => setReportDesc(e.target.value)} placeholder="Describe the fraud in detail..."
+            style={{ width: '100%', padding: '14px 16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,198,255,0.12)', borderRadius: 14, color: '#f0f4ff', fontSize: '0.9rem', fontFamily: 'Inter', outline: 'none', marginBottom: 20, minHeight: 120, resize: 'vertical' }} />
+
+          <button onClick={handleSubmit} disabled={submitting} style={{ width: '100%', padding: '16px', background: 'linear-gradient(135deg, #0066cc, #00c6ff)', border: 'none', borderRadius: 14, color: '#fff', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', fontFamily: 'Inter', opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? 'Submitting...' : 'Submit Report'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
-  const filtered = filter === 'all' ? reports : reports.filter(r => r.report_type === filter)
-
+  // Main Community Screen
   return (
-    <div>
-      <div className="top-bar">
-        <div className="top-bar-title">🛡️ Community</div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="btn btn-primary btn-sm"
-          style={{ padding: '6px 12px' }}
-        >
-          <Plus size={14} /> Report
+    <div className="screen-content" style={{ padding: '0 0 90px 0' }}>
+      <div style={{ padding: '16px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, background: 'linear-gradient(135deg, #00c6ff, #0ff0fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 4 }}>Community</h1>
+          <p style={{ fontSize: '0.82rem', color: '#8a9cbc' }}>Report and track fraud together</p>
+        </div>
+        <button onClick={() => setShowReportForm(true)} style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #0066cc, #00c6ff)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Inter', display: 'flex', alignItems: 'center', gap: 6 }}>
+          + Report
         </button>
       </div>
 
-      <div className="screen-content screen-pad animate-fadeIn">
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {[
-            { label: 'Reports', value: reports.length, color: 'var(--accent-red)' },
-            { label: 'Verified', value: reports.filter(r => r.verified).length, color: 'var(--accent-green)' },
-            { label: 'High Risk', value: reports.filter(r => r.severity === 'high').length, color: 'var(--accent-orange)' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ flex: 1, textAlign: 'center', padding: 10 }}>
-              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{s.label}</div>
+      <div style={{ padding: '0 18px' }}>
+        {/* Trending Scams */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00c6ff" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#00c6ff' }}>Trending Scams</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {trendingScams.map(s => (
+              <div key={s.rank} style={{ background: 'rgba(16,30,52,0.7)', border: '1px solid rgba(0,198,255,0.08)', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 800, color: s.color }}>{s.rank}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f0f4ff' }}>{s.title}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#8a9cbc' }}>{s.reports} reports</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: '#00e676' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+                  {s.trend}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Reports */}
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 14, color: '#f0f4ff' }}>Recent Reports</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {recentReports.map(r => (
+            <div key={r.id} style={{ background: 'rgba(16,30,52,0.7)', border: '1px solid rgba(0,198,255,0.08)', borderRadius: 16, padding: '16px' }}>
+              {/* User header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${r.color}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: r.color, border: `2px solid ${r.color}40` }}>{r.initials}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f0f4ff' }}>{r.user}</span>
+                    {r.verified && <svg width="14" height="14" viewBox="0 0 24 24" fill="#00c6ff"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#00c6ff" strokeWidth="2" fill="none"/></svg>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {r.badge && <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#00e676', background: 'rgba(0,230,118,0.12)', padding: '2px 8px', borderRadius: 20, border: '1px solid rgba(0,230,118,0.25)' }}>{r.badge}</span>}
+                    <span style={{ fontSize: '0.7rem', color: '#4a5a7a' }}>{r.time}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Tags */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#ff9100', background: 'rgba(255,145,0,0.12)', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(255,145,0,0.25)' }}>{r.type}</span>
+                {r.verified && <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#00e676', background: 'rgba(0,230,118,0.12)', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(0,230,118,0.25)' }}>✓ Verified by community</span>}
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#8a9cbc', lineHeight: 1.5 }}>{r.desc}</p>
+              {/* Upvote */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: '#4a5a7a', fontSize: '0.78rem' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                {r.upvotes}
+              </div>
             </div>
           ))}
         </div>
-
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'sms', label: '💬 SMS' },
-            { id: 'link', label: '🔗 Links' },
-            { id: 'app', label: '📱 Apps' },
-            { id: 'call', label: '📞 Calls' },
-          ].map(btn => (
-            <button key={btn.id} onClick={() => setFilter(btn.id)} style={{
-              flexShrink: 0, padding: '6px 12px', borderRadius: 99,
-              border: `1px solid ${filter === btn.id ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-              background: filter === btn.id ? 'rgba(0,198,255,0.12)' : 'transparent',
-              color: filter === btn.id ? 'var(--accent-blue)' : 'var(--text-secondary)',
-              fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)',
-            }}>
-              {btn.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Reports */}
-        <div className="flex flex-col gap-3">
-          {filtered.map(r => <ReportCard key={r.id} report={r} onUpvote={handleUpvote} />)}
-        </div>
-
-        {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-            No reports in this category yet.
-          </div>
-        )}
       </div>
-
-      {showForm && <ReportForm onClose={() => setShowForm(false)} onSubmit={handleSubmit} />}
     </div>
   )
 }
