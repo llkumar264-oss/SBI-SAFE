@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/llkumar264-oss/SBI-SAFE/main/frontend/public/vite.svg" width="80" alt="SBI SAFE Logo" />
+  <img src="https://raw.githubusercontent.com/llkumar264-oss/SBI-SAFE/main/frontend/public/sbi_safe_logo.svg" width="80" alt="SBI SAFE Logo" />
   <h1>🛡️ SBI SAFE — Enterprise AI Fraud Prevention Platform</h1>
   <p>
     <b>A highly scalable, real-time machine learning cybersecurity application designed to detect and prevent financial fraud across SMS, WhatsApp, and the Web.</b>
